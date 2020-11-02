@@ -93,6 +93,22 @@ void shiftrows(unsigned char state[4][4]);
 void inv_sub_bytes(unsigned char state[4][4]);
 void sub_bytes(unsigned char state[4][4]);
 
+unsigned int exGcd( unsigned int a,  unsigned int b,  unsigned int* x,  unsigned int* y);
+unsigned char affineTransformation(unsigned char u);
+unsigned int exGcd(unsigned int a, unsigned int b, unsigned int* x, unsigned int* y);
+unsigned int polMul(unsigned int a, unsigned int b);
+unsigned char GFmul(unsigned char a, unsigned char b);
+unsigned int GFdiv(unsigned int a, unsigned int b, unsigned char* residue);
+unsigned char inv_affineTransformation(unsigned char u);
+
+void inv_keyschedule_wosbox(unsigned char key[4][4], int round);
+void keyschedule_wosbox(unsigned char key[4][4], int round);
+void sub_bytes_wosbox(unsigned char state[4][4]);
+void inv_sub_bytes_wosbox(unsigned char state[4][4]);
+void decrypt_wosbox(unsigned char plaintext[4][4], unsigned char cipher_key[4][4]);
+void encrypt_wosbox(unsigned char plaintext[4][4], unsigned char cipher_key[4][4]);
+
+
 int main() {
     unsigned char first[4][4] = {
         {0x19, 0xa0, 0x9a, 0xe9},
@@ -116,6 +132,8 @@ int main() {
     };
     
 
+    unsigned char test_sbox;
+    unsigned int x, y;
 
     print_state(test);
     printf("********************************\n");
@@ -125,6 +143,43 @@ int main() {
     decrypt(test, testkey);
     print_state(test);
     printf("********************************\n");
+
+    printf("Without SBOX\n");
+    print_state(test);
+    printf("********************************\n");
+    encrypt_wosbox(test, testkey);
+    print_state(test);
+    printf("********************************\n");
+    decrypt_wosbox(test, testkey);
+    print_state(test);
+    printf("********************************\n");
+}
+
+void sub_bytes_wosbox(unsigned char state[4][4]) {
+    int i, j;
+    unsigned int x, y;
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            x = 0; y = 0;
+            exGcd(0x11b, (unsigned int)state[i][j], &x, &y);
+            state[i][j] = affineTransformation(y);
+        }
+    }
+}
+void inv_sub_bytes_wosbox(unsigned char state[4][4]) {
+    int i, j;
+    unsigned int x, y;
+    unsigned char temp;
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            x = 0; y = 0;
+            temp = inv_affineTransformation(state[i][j]);
+            exGcd(0x11b, temp, &x, &y);
+            state[i][j] = (unsigned char)y;
+        }
+    }
 }
 
 void sub_bytes(unsigned char state[4][4]) {
@@ -311,6 +366,46 @@ void inv_keyschedule(unsigned char key[4][4], int round) {
     }
 }
 
+void keyschedule_wosbox(unsigned char key[4][4], int round) {
+    int i, j, row, col;
+    unsigned int x, y;
+
+    for (i = 0; i < 4; i++) {
+        x = 0; y = 0;
+        exGcd(0x11b, (unsigned int) key[(i + 1) % 4][3], &x, &y);
+        key[i][0] ^= affineTransformation(y);
+
+        if (i == 0) // first row
+            key[i][0] ^= Rcon[round - 1]; 
+    }
+
+    for (col = 1; col < 4; col++) {
+        for (row = 0; row < 4; row++) {
+            key[row][col] ^= key[row][col - 1];
+        }
+    }
+}
+
+void inv_keyschedule_wosbox(unsigned char key[4][4], int round) {
+    int i, j, row, col;
+    unsigned int x, y;
+
+    for (col = 3; col > 0; col--) {
+        for (row = 0; row < 4; row++) {
+            key[row][col] ^= key[row][col - 1];
+        }
+    }
+
+    for (i = 0; i < 4; i++) {
+        x = 0; y = 0;
+        exGcd(0x11b, (unsigned int)key[(i + 1) % 4][3], &x, &y);
+        key[i][0] ^= affineTransformation(y);
+
+        if (i == 0) // first row
+            key[i][0] ^= Rcon[round - 1]; 
+    }
+}
+
 void encrypt(unsigned char plaintext[4][4], unsigned char cipher_key[4][4]) {
     int round;
 
@@ -353,6 +448,48 @@ void decrypt(unsigned char plaintext[4][4], unsigned char cipher_key[4][4]) {
 
 }
 
+void encrypt_wosbox(unsigned char plaintext[4][4], unsigned char cipher_key[4][4]) {
+    int round;
+
+    addroundkey(plaintext, cipher_key);
+
+    for (round = 1; round < 10; round++) {
+        sub_bytes_wosbox(plaintext);
+        shiftrows(plaintext);
+        mixcolumns(plaintext);
+        keyschedule_wosbox(cipher_key, round);
+        addroundkey(plaintext, cipher_key);
+
+    }
+
+    sub_bytes(plaintext);
+    shiftrows(plaintext);
+    keyschedule_wosbox(cipher_key, 10);
+    addroundkey(plaintext, cipher_key);
+
+
+}
+
+void decrypt_wosbox(unsigned char plaintext[4][4], unsigned char cipher_key[4][4]) {
+    int round;
+
+    addroundkey(plaintext, cipher_key);
+    inv_keyschedule_wosbox(cipher_key, 10);
+
+
+    for (round = 10; round > 1; round--) {
+        inv_shiftrows(plaintext);
+        inv_sub_bytes_wosbox(plaintext);
+        addroundkey(plaintext, cipher_key);
+        inv_keyschedule_wosbox(cipher_key, round - 1);
+        inv_mixcolumns(plaintext);
+    }
+    inv_shiftrows(plaintext);
+    inv_sub_bytes(plaintext);
+    addroundkey(plaintext, cipher_key);
+
+}
+
 void print_state(unsigned char state[4][4]) {
     int i, j;
 
@@ -362,4 +499,78 @@ void print_state(unsigned char state[4][4]) {
         }
         printf("\n");
     }
+}
+
+unsigned char affineTransformation(unsigned char u) {
+    unsigned char result = 0;
+    result = u ^ ((u << 1) | (u >> (8 - 1))) ^ ((u << 2) | (u >> (8 - 2))) ^ ((u << 3) | (u >> (8 - 3))) ^  ((u << 4) | (u >> (8 - 4))) ^ 0x63;
+    
+    return result;
+}
+
+unsigned char inv_affineTransformation(unsigned char u) {
+    unsigned char result = 0;
+
+    result = ((u << 1) | (u >> (8 - 1))) ^ ((u << 3) | (u >> (8 - 3))) ^ ((u << 6) | (u >> (8 - 6))) ^ 0x05;
+    return result;
+}
+
+unsigned int GFdiv(unsigned int a, unsigned int b, unsigned char* residue) {
+    unsigned int res = 0;
+    while (a >= b) {
+        unsigned int ha = 8, hb = 8, t = a;
+        while (!(t & 0x100)) {--ha; t <<= 1;}
+        t = b;
+        while (!(t & 0x100)) {--hb; t <<= 1;}
+
+        unsigned int d = ha - hb;
+        unsigned int curRes = 0x01 << d;
+        res |= curRes;
+        unsigned int tmp = polMul(b, curRes);
+        a ^= tmp;
+    }
+    *residue = a;
+    return res;
+} 
+
+unsigned char GFmul(unsigned char a, unsigned char b) {
+    unsigned char res = 0, tmp;
+    if ((b & 1) == 1) res = a;          
+    b >>= 1;
+    for (int i = 0; i < 7; ++i) {       
+        tmp = a;
+        a <<= 1;                        
+        if (tmp > 127) a ^= 0x1b;
+        if ((b & 1) == 1) res ^= a;
+        b >>= 1;
+    }
+    return res;
+}
+
+unsigned int polMul(unsigned int a, unsigned int b) {
+    unsigned int res = 0;
+    if ((b & 1) == 1) res = a;
+    b >>= 1;
+    for (int i = 0; i < 8; ++i) {
+        a <<= 1;
+        if ((b & 1) == 1) res ^= a;
+        b >>= 1;
+    }
+    return res;
+}
+
+unsigned int exGcd(unsigned int a, unsigned int b, unsigned int* x, unsigned int* y) {
+    if (b == 0) {
+        *x = 1; *y = 0;
+        return a;
+    }
+
+    unsigned char r;      
+    unsigned int q = GFdiv(a, b, &r);
+
+    unsigned int res = exGcd(b, r, x, y);
+    unsigned int tmp = *x;
+    *x = *y;
+    *y = tmp ^ GFmul(q, *y);
+    return res;
 }
