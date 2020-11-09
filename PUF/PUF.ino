@@ -13,7 +13,8 @@ const byte pin13 = 13;
 int command_str;
 bool PUT_mode = true;
 bool flag = true;
-byte PUF_code[512];
+byte PUF_code1[512];
+byte PUF_code2[512];
 byte RN;
 
 void setup() {
@@ -37,7 +38,7 @@ void setup() {
   digitalWrite(send_req, LOW);
 }
 
-void read_PUF(){
+void read_PUF(byte PUF_code[512]){
   int count = 0;
   int state = 0;
   int ready_state = 0;
@@ -105,6 +106,7 @@ void read_RN() {
       if (valid_state == HIGH) {
         // Serial.print("Valid\n");
         state = 0;
+        
         RN |= digitalRead(pin6);
         RN |= digitalRead(pin7) << 1;
         RN |= digitalRead(pin8) << 2;
@@ -117,6 +119,26 @@ void read_RN() {
       }
     }
   }
+}
+
+void check() {
+  int i;
+  bool test = true;
+  
+  read_PUF(PUF_code1);
+  read_PUF(PUF_code2);
+
+  for(i = 0; i < 512; i++) {
+    if (PUF_code1[i] != PUF_code2[i])
+      test = false;
+  }
+
+  if (test) {
+    Serial.print("Correct\n");
+  } else {
+    Serial.print("False\n");
+  }
+
 }
 
 void loop() {
@@ -135,14 +157,17 @@ void loop() {
     
     if (PUT_mode) { // read data
       if (command_str == 'R') {
-        read_PUF();
+        // read_PUF();
+        check();
         Serial.print("Read PUF\n");
+        /*
         Serial.print(PUF_code[0]);
         Serial.print(", ");
         Serial.print(PUF_code[255]);
         Serial.print(", ");
         Serial.print(PUF_code[511]);
         Serial.print("\n");
+        */
         
       }
     } else { // read data

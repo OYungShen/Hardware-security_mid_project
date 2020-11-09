@@ -167,6 +167,7 @@ void sub_bytes_wosbox(unsigned char state[4][4]) {
         }
     }
 }
+
 void inv_sub_bytes_wosbox(unsigned char state[4][4]) {
     int i, j;
     unsigned int x, y;
