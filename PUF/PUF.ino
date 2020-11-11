@@ -141,6 +141,20 @@ void check() {
 
 }
 
+void print_4bytes(byte PUF_code[512]) {
+  int i, j;
+
+  for (i = 0; i < 128; i++) {
+    Serial.print("  ");
+    for (j = 0; j < 4; j++) {
+      if (PUF_code[i * 4 + j] < 16)
+        Serial.print("0");
+      Serial.print(PUF_code[i * 4 + j], HEX);
+    }
+    Serial.print("\n");
+  }
+}
+
 void loop() {
   if (Serial.available() > 0) {
     // read the oldest byte in the serial buffer:
@@ -157,17 +171,10 @@ void loop() {
     
     if (PUT_mode) { // read data
       if (command_str == 'R') {
-        // read_PUF();
-        check();
-        Serial.print("Read PUF\n");
-        /*
-        Serial.print(PUF_code[0]);
-        Serial.print(", ");
-        Serial.print(PUF_code[255]);
-        Serial.print(", ");
-        Serial.print(PUF_code[511]);
-        Serial.print("\n");
-        */
+        read_PUF(PUF_code1);
+        // check();
+        Serial.print("PUF code : \n");
+        print_4bytes(PUF_code1);
         
       }
     } else { // read data

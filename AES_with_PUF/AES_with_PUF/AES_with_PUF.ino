@@ -147,6 +147,7 @@ void setup() {
 
 void loop() {
   int row, col;
+  unsigned long cpu_time;
   
   if (Serial.available() > 0) {
     // read the oldest byte in the serial buffer:
@@ -197,12 +198,22 @@ void loop() {
       Serial.print("Input text\n");
       print_state(plaintext);
       // encrypt
+      cpu_time = micros(); // starting time
       encrypt(plaintext, cipherkey);
+      cpu_time = micros() - cpu_time; // calculate cpu time
+      Serial.print("CPU time\n");
+      Serial.print(cpu_time);
+      Serial.print("  microsecons\n");
       Serial.print("Encrypted text\n");
       print_state(plaintext);
     }
     if (command_str == 'D') {
+      cpu_time = micros(); // starting time
       decrypt(plaintext, cipherkey);
+      cpu_time = micros() - cpu_time; // calculate cpu time
+      Serial.print("CPU time\n");
+      Serial.print(cpu_time);
+      Serial.print("  microsecons\n");
       Serial.print("Original text\n");
       print_state(plaintext);
     }
@@ -223,12 +234,22 @@ void loop() {
       Serial.print("Input text\n");
       print_state(plaintext);
       // encrypt
+      cpu_time = micros(); // starting time
       encrypt_wosbox(plaintext, cipherkey);
+      cpu_time = micros() - cpu_time; // calculate cpu time
+      Serial.print("CPU time\n");
+      Serial.print(cpu_time);
+      Serial.print("  microsecons\n");
       Serial.print("Encrypted text\n");
       print_state(plaintext);
     }
     if (command_str == 'B') {
+      cpu_time = micros(); // starting time
       decrypt_wosbox(plaintext, cipherkey);
+      cpu_time = micros() - cpu_time; // calculate cpu time
+      Serial.print("CPU time\n");
+      Serial.print(cpu_time);
+      Serial.print("  microsecons\n");
       Serial.print("Original text\n");
       print_state(plaintext);
     }
